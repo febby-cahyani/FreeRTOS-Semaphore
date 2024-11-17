@@ -1,5 +1,5 @@
-# FreeRTOS-SharedResource-LED-Control
-Proyek ini menunjukkan penggunaan FreeRTOS untuk mengelola beberapa tugas yang mencoba mengakses *shared resource* dalam sistem multitasking. Output dari program ini berkaitan dengan bagaimana keempat LED berperilaku berdasarkan pengendalian akses ke *shared resource* menggunakan mekanisme **mutual exclusion**.
+# FreeRTOS-Semaphore-LED-Control
+Proyek ini menunjukkan penggunaan FreeRTOS Semaphore untuk sinkronisasi antara beberapa task dalam sistem multitasking. Program ini berfokus pada bagaimana penggunaan semaphore dapat mengatur urutan eksekusi task, khususnya dalam mengendalikan perilaku LED pada STM32F401CCU6.
 
 Diagram Task :
 
@@ -14,36 +14,50 @@ Software yang diperlukan :
 2. FreeRTOS
 
 Cara Kerja :
-1. Inisialisasi dan Penjadwalan Tugas :
-   - Program dimulai dengan inisialisasi FreeRTOS yang mengonfigurasi task yang akan dijalankan secara bersamaan.
-   - Ada 4 tugas utama yaitu sebagai berikut :
-
-     a. 'GreenTask' dan 'RedTask' mencoba mengakses *shared resource" yang dinamakan 'StartFlag' menggunakan mekanisme **mutual exclusion**.
+1. Inisialisasi Semaphore dan Task :
+   - Program dimulai dengan inisialisasi FreeRTOS dan pembuatan beberapa task serta semaphore.
+   - Tugas-tugas ini berinteraksi dengan semaphore untuk mengatur akses ke critical section atau untuk sinkronisasi antar task.
      
-     b. 'OrangeTask' berjalan secara terus-menerus dengan prioritas lebih tinggi.
+2. Deskripsi Task :
+   
+   a. 'RedTask' :
+   - Task ini menunggu semaphore untuk mendapatkan akses ke LED 2.
+   - Jika semaphore tersedia, LED 2 akan menyala selama 500ms sebelum menyerahkan kembali semaphore.
+   
+   b. 'GreenTask' :
+   - Task ini juga menggunakan semaphore untuk mengakses LED 1.
+   - Jika semaphore tersedia, LED 1 akan menyala selama 500ms.
+   
+   c. 'BlueTask' :
+   - Task ini hanya dapat berjalan setelah semaphore dilepas oleh task lain.
+   - Menggunakan semaphore untuk mengakses LED 3, yang menyala selama 500ms.
+   
+   d. 'OrangeTask' :
+   - Task dengan prioritas lebih tinggi yang berjalan terus-menerus tanpa bergantung pada semaphore.
+   - LED 4 berkedip dengan delay 50ms.
      
-     c. 'BlueTask' akan memeriksa apakah ada konflik dalam pengaksesan *shared resource* dan mengaktifkan Led Merah jika terjadi konflik.
+4. Mekanisme Semaphore
+   - Binary Semaphore digunakan untuk memastikan bahwa hanya satu task yang dapat mengakses critical section (dalam hal ini, LED) pada satu waktu.
+   - Task yang tidak dapat mendapatkan semaphore akan menunggu hingga semaphore dilepas oleh task lain.
      
-2. Mutual Exclusion (Penghindaran Konflik) :
-   - Tugas 'GreenTask' dan 'RedTask' saling bergantian mengakses *shared resource* ('StartFlag'). Akses ini dilindungi menggunakan mekanisme **mutual exclusion** untuk memastikan bahwa hanya satu tugas yang dapat mengakses *shared resource* pada satu waktu.
-   - Jika salah satu tugas berhasil mengakses *shared resource*, LED yang sesuai akan menyala.
-   - Jika terjadi problem dan tugas gagal mendapatkan akses ke *shared resource* semisal task lain sedang mengaksesnya, 'BlueTask' akan menyala sebagai indikator terjadinya kegagalan.
-     
-3. LED Orange Berkedip :
-   - tugas 'OrangeTask' memiliki prioritas lebih tinggi daripada task lainnya, sehingga akan selalu berjalan tanpa terganggu.
-   - LED Orange 'led4' akan berkedip terus-menerus dengan delay 50ms, menunjukkan bahwa 'OrangeTask' tetap berjalan tanpa tergantung pada *shared resource*.
-     
-4. Penanganan Konflik :
-   - Jika bagian *critical section* dihapus atau tidak diterapkan dengan benar, tugas 'GreenTask' dan 'RedTask' mungkin mencoba mengkases *shared resource* pada saat yang bersamaan, yang menyebabkan konflik.
-   - 'BlueTask' akan sering menyala untuk menunjukkan adanya konflik ketika dua tugas mencoba mengakses *shared resource* pada waktu yang bersamaan.
-     
-5. Siklus Kerja LED :
-   - **Kasus Normal** : Jika mutual exclusion bekerja dengan baik, 'GreenTask' dan 'RedTask' akan menyala bergantian, menunjukkan bahwa kedua task berhasil mengakses *shared resource*. 'OrangeTask' akan terus berkedip dengan cepat.
-   - **Kasus Problem** : Jika mutual exclusion tidak diterapkan dengan bena, 'GreenTask' dan 'RedTask' mungkin menyala bersamaan atau dengan pola yang tidak teratur, dan 'BlueTask' akan menyala untuk menunjukkan adanyan konflik.
+5. Perilaku Task :
+   
+   a. Urutan Eksekusi dengan Semaphore :
+      - Jika semaphore tersedia, 'RedTask', 'GreenTask', atau 'BlueTask' akan mengaksesnya bergantian.
+      - Task yang gagal mendapatkan semaphore akan masuk ke mode blocked state hingga semaphore dilepas.
+        
+   b. OrangeTask :
+      - Selalu berjalan tanpa tergantung pada semaphore.
+      - LED Orange berkedip cepat untuk menunjukkan bahwa task ini berjalan normal.
+       
+7. Siklus Kerja LED :
+   - Led 'GreenTask', 'RedTask', dan 'BlueTask' menyala bergantian tanpa konflik.
+   - Led 'OrangeTask' berkedip tanpa gangguan.
 
 Ringkasan Perilaku LED :
 
-![Screenshot 2024-11-17 133611](https://github.com/user-attachments/assets/a70f9518-9b90-439b-8418-d0b43b5269ed)
+![Screenshot 2024-11-17 154739](https://github.com/user-attachments/assets/69271358-527a-46f3-8115-62b063c9170e)
+
 
 Pinout Hardware :
 
@@ -55,7 +69,7 @@ Hasil Hardware :
 
 
 Hasil dari proyek ini sebagai berikut :
-1. **Normal**: LED Hijau dan Kuning bergantian menyala tanpa terdapat masalah, LED Merah tetap mati.
-2. **Problem** : Jika dengan sengaja menghapus mekanismer *critical section*, LED Biru akan sering menyala.
+- Led 'GreenTask', 'RedTask', dan 'BlueTask' menyala bergantian tanpa konflik.
+- Led 'OrangeTask' berkedip tanpa gangguan.
    
 Project ini dikerjakan di Politeknik Elektronika Negeri Surabaya dengan dosen pengampu bapak Fernando Ardilla
